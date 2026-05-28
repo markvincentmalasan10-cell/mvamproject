@@ -53,6 +53,24 @@ echo $dbUrl;
 ')"
 export DB_URL
 
+HAS_DATABASE_CONFIG="$(php -r '
+$keys = ["DB_HOST", "DB_DATABASE", "DB_USERNAME", "DB_PASSWORD"];
+
+foreach ($keys as $key) {
+    if (trim(getenv($key) ?: "") !== "") {
+        echo "1";
+        exit;
+    }
+}
+
+echo "0";
+')"
+
+if [ "$HAS_DATABASE_CONFIG" = "1" ]; then
+    DB_URL=""
+    export DB_URL
+fi
+
 if [ -n "$DB_URL" ]; then
     DB_CONNECTION="$(php -r '
     $scheme = strtolower((string) (parse_url(getenv("DB_URL") ?: "", PHP_URL_SCHEME) ?: ""));
@@ -66,19 +84,6 @@ if [ -n "$DB_URL" ]; then
     ')"
     export DB_CONNECTION
 else
-    HAS_DATABASE_CONFIG="$(php -r '
-    $keys = ["DB_HOST", "DB_DATABASE", "DB_USERNAME", "DB_PASSWORD"];
-
-    foreach ($keys as $key) {
-        if (trim(getenv($key) ?: "") !== "") {
-            echo "1";
-            exit;
-        }
-    }
-
-    echo "0";
-    ')"
-
     if [ "$HAS_DATABASE_CONFIG" = "1" ]; then
         DB_CONNECTION="$(php -r '
         $connection = strtolower(getenv("DB_CONNECTION") ?: "mysql");
