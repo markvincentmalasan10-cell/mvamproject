@@ -183,53 +183,77 @@ class StudentController extends Controller
      */
     public function store(Request $request)
     {
-        $this->ensureStudentCrudSchema();
+        try {
+            $this->ensureStudentCrudSchema();
 
-        $validated = $request->validate($this->studentValidationRules([
-            'fname' => 'required|string|max:255',
-            'mname' => 'nullable|string|max:255',
-            'lname' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'contactno' => 'required|string|max:255',
-            'degree_id' => 'nullable',
-            'username' => 'required|string|max:255',
-            'password' => 'required|string|min:6',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
-        ], true));
+            $validated = $request->validate($this->studentValidationRules([
+                'fname' => 'required|string|max:255',
+                'mname' => 'nullable|string|max:255',
+                'lname' => 'required|string|max:255',
+                'email' => 'required|email|max:255',
+                'contactno' => 'required|string|max:255',
+                'degree_id' => 'nullable',
+                'username' => 'required|string|max:255',
+                'password' => 'required|string|min:6',
+                'image' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
+            ], true));
 
-        $imagePath = null;
+            $imagePath = null;
 
-        if ($request->hasFile('image')) {
-            $storedPath = $request->file('image')->store('student_images', 'public');
-            $imagePath = 'storage/' . $storedPath;
-        }
-
-        DB::transaction(function () use ($validated, $imagePath) {
-            $userAccount = null;
-
-            if (Schema::hasTable('user_account')) {
-                $userAccount = UserAccount::create([
-                    'username' => $validated['username'],
-                    'email' => $validated['email'],
-                    'password' => Hash::make($validated['password']),
-                    'role' => 'student',
-                    'is_active' => true,
-                    'must_change_password' => false,
-                    'is_first_login' => true,
-                ]);
+            if ($request->hasFile('image')) {
+                $storedPath = $request->file('image')->store('student_images', 'public');
+                $imagePath = 'storage/' . $storedPath;
             }
 
-            Student::create($this->studentDataForExistingColumns([
-                'fname' => $validated['fname'],
-                'mname' => $validated['mname'] ?? null,
-                'lname' => $validated['lname'],
-                'email' => $validated['email'],
-                'contactno' => $validated['contactno'],
-                'degree_id' => $validated['degree_id'] ?? null,
-                'user_account_id' => $userAccount?->id,
-                'image_path' => $imagePath,
-            ]));
-        });
+            DB::transaction(function () use ($validated, $imagePath) {
+                $userAccount = null;
+
+                if (Schema::hasTable('user_account')) {
+                    $userAccount = UserAccount::create($this->userAccountDataForExistingColumns([
+                        'username' => $validated['username'],
+                        'email' => $validated['email'],
+                        'password' => Hash::make($validated['password']),
+                        'role' => 'student',
+                        'is_active' => true,
+                        'must_change_password' => false,
+                        'is_first_login' => true,
+                    ]));
+                }
+
+                Student::create($this->studentDataForExistingColumns([
+                    'fname' => $validated['fname'],
+                    'mname' => $validated['mname'] ?? null,
+                    'lname' => $validated['lname'],
+                    'email' => $validated['email'],
+                    'contactno' => $validated['contactno'],
+                    'degree_id' => $validated['degree_id'] ?? null,
+                    'user_account_id' => $userAccount?->id,
+                    'image_path' => $imagePath,
+                    'username' => $validated['username'],
+                    'password' => Hash::make($validated['password']),
+                    'is_first_login' => true,
+                ]));
+            });
+        } catch (Throwable $exception) {
+            Log::error('Unable to store student.', [
+                'message' => $exception->getMessage(),
+            ]);
+
+            $message = str_contains(strtolower($exception->getMessage()), 'unique')
+                ? 'Username or email already exists. Please use a different one.'
+                : 'Student could not be saved. Please check the form and try again.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'username' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return back()->withErrors(['username' => $message])->withInput();
+        }
 
         $msg = "Student added successfully.";
         Log::info($msg);
@@ -473,6 +497,13 @@ class StudentController extends Controller
     {
         return collect($data)
             ->filter(fn ($value, $column) => Schema::hasColumn('students', $column))
+            ->all();
+    }
+
+    private function userAccountDataForExistingColumns(array $data): array
+    {
+        return collect($data)
+            ->filter(fn ($value, $column) => Schema::hasColumn('user_account', $column))
             ->all();
     }
 
