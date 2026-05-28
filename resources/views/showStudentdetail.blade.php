@@ -38,7 +38,13 @@
         </div>
         <div class="detail-item">
             <strong>Degree</strong>
-            <span>{{ $student->degree?->degree_title ?? 'No degree assigned' }}</span>
+            <span>
+                @if($student->relationLoaded('degree'))
+                    {{ $student->degree?->degree_title ?? 'No degree assigned' }}
+                @else
+                    {{ $student->degree_title ?? 'No degree assigned' }}
+                @endif
+            </span>
         </div>
         <div class="detail-item">
             <strong>Image Path</strong>

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\UserAccount;
+use App\Models\Student;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -64,5 +65,44 @@ class ExampleTest extends TestCase
         $this->get('/degrees')->assertStatus(200);
         $this->get('/students/export/excel')->assertStatus(200);
         $this->get('/students/export/pdf')->assertStatus(200);
+    }
+
+    public function test_admin_student_crud_urls_work(): void
+    {
+        $this->withSession([
+            'user_account_id' => 1,
+            'logged_user' => 'admin',
+            'user_role' => 'admin',
+            'is_first_login' => false,
+        ]);
+
+        $this->get('/student/create')->assertStatus(200);
+
+        $this->postJson('/students', [
+            'fname' => 'Maria',
+            'mname' => 'Santos',
+            'lname' => 'Reyes',
+            'email' => 'maria.reyes@example.com',
+            'contactno' => '09170000000',
+            'degree_id' => null,
+            'username' => 'mariareyes',
+            'password' => 'secret123',
+        ])->assertStatus(200);
+
+        $student = Student::where('email', 'maria.reyes@example.com')->firstOrFail();
+
+        $this->get("/student/{$student->id}")->assertStatus(200);
+        $this->get("/student/{$student->id}/edit")->assertStatus(200);
+
+        $this->putJson("/students/{$student->id}", [
+            'fname' => 'Maria',
+            'mname' => null,
+            'lname' => 'Reyes',
+            'email' => 'maria.updated@example.com',
+            'contactno' => '09171111111',
+            'degree_id' => null,
+        ])->assertStatus(200);
+
+        $this->deleteJson("/students/{$student->id}")->assertStatus(200);
     }
 }

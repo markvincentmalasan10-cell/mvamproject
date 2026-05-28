@@ -5,6 +5,7 @@ use App\Models\Degree;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -89,26 +90,24 @@ class StudentController extends Controller
     //     ->with("grade",$grade);
 
         try {
+            $this->ensureStudentCrudSchema();
+
             if (! Schema::hasTable('students')) {
-                $students = new LengthAwarePaginator([], 0, 5);
+                $students = $this->emptyStudentPaginator();
                 $user = session('logged_user', session('student_name'));
 
                 return view('student')->with("students", $students)->with("user", $user);
             }
 
-            $query = Student::query();
-
-            if (Schema::hasTable('degrees') && Schema::hasColumn('students', 'degree_id')) {
-                $query->with('degree');
-            }
-
-            $students = $query->paginate(5);
+            $students = Student::query()
+                ->with($this->studentRelations())
+                ->paginate(5);
         } catch (Throwable $exception) {
             Log::error('Unable to load student list.', [
                 'message' => $exception->getMessage(),
             ]);
 
-            $students = new LengthAwarePaginator([], 0, 5);
+            $students = $this->emptyStudentPaginator();
             $user = session('logged_user', session('student_name'));
 
             return view('student')->with("students", $students)->with("user", $user);
@@ -165,9 +164,9 @@ class StudentController extends Controller
      */
     public function create()
     {
-         $degrees = Schema::hasTable('degrees') && Schema::hasColumn('degrees', 'degree_title')
-            ? Degree::orderBy('degree_title')->get()
-            : (Schema::hasTable('degrees') ? Degree::query()->get() : collect());
+         $this->ensureStudentCrudSchema();
+         $degrees = $this->degreeOptions();
+
          return view('add_student', compact('degrees'));
     }
 
@@ -176,17 +175,19 @@ class StudentController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $this->ensureStudentCrudSchema();
+
+        $validated = $request->validate($this->studentValidationRules([
             'fname' => 'required|string|max:255',
             'mname' => 'nullable|string|max:255',
             'lname' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'contactno' => 'required|string|max:255',
-            'degree_id' => 'nullable|exists:degrees,id',
-            'username' => 'required|string|max:255|unique:user_account,username',
+            'degree_id' => 'nullable',
+            'username' => 'required|string|max:255',
             'password' => 'required|string|min:6',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
-        ]);
+        ], true));
 
         $imagePath = null;
 
@@ -196,26 +197,30 @@ class StudentController extends Controller
         }
 
         DB::transaction(function () use ($validated, $imagePath) {
-            $userAccount = UserAccount::create([
-                'username' => $validated['username'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-                'role' => 'student',
-                'is_active' => true,
-                'must_change_password' => false,
-                'is_first_login' => true,
-            ]);
+            $userAccount = null;
 
-            Student::create([
+            if (Schema::hasTable('user_account')) {
+                $userAccount = UserAccount::create([
+                    'username' => $validated['username'],
+                    'email' => $validated['email'],
+                    'password' => Hash::make($validated['password']),
+                    'role' => 'student',
+                    'is_active' => true,
+                    'must_change_password' => false,
+                    'is_first_login' => true,
+                ]);
+            }
+
+            Student::create($this->studentDataForExistingColumns([
                 'fname' => $validated['fname'],
                 'mname' => $validated['mname'] ?? null,
                 'lname' => $validated['lname'],
                 'email' => $validated['email'],
                 'contactno' => $validated['contactno'],
                 'degree_id' => $validated['degree_id'] ?? null,
-                'user_account_id' => $userAccount->id,
+                'user_account_id' => $userAccount?->id,
                 'image_path' => $imagePath,
-            ]);
+            ]));
         });
 
         $msg = "Student added successfully.";
@@ -243,7 +248,9 @@ class StudentController extends Controller
      */
     public function show(Request $request, string $id)
     {
-        $student = Student::with(['degree', 'userAccount'])->findOrFail($id);
+        $this->ensureStudentCrudSchema();
+
+        $student = Student::with($this->studentRelations(true))->findOrFail($id);
 
         if ($request->expectsJson()) {
             return response()->json($student);
@@ -257,12 +264,10 @@ class StudentController extends Controller
      */
     public function edit(string $id)
     {
+        $this->ensureStudentCrudSchema();
+
         $student = Student::findOrFail($id);
-        $degrees = Schema::hasTable('degrees') && Schema::hasColumn('degrees', 'degree_title')
-            ? Degree::orderBy('degree_title')->get()
-            : (Schema::hasTable('degrees') ? Degree::query()->get() : collect());
-
-
+        $degrees = $this->degreeOptions();
 
         return view('edit_student', compact('student', 'degrees'));
 
@@ -303,27 +308,27 @@ class StudentController extends Controller
      */
     public function update(Request $request, string $id)
     {
-       $validated = $request->validate([
+       $this->ensureStudentCrudSchema();
+
+       $validated = $request->validate($this->studentValidationRules([
             'fname' => 'required|string|max:255',
             'mname' => 'nullable|string|max:255',
             'lname' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'contactno' => 'required|string|max:255',
-            'degree_id' => 'nullable|exists:degrees,id',
-        ]);
+            'degree_id' => 'nullable',
+        ], false));
 
        $student = Student::findOrFail($id);
 
         DB::transaction(function () use ($student, $validated) {
-            $student->fname = $validated['fname'];
-            $student->mname = $validated['mname'] ?? null;
-            $student->lname = $validated['lname'];
-            $student->email = $validated['email'];
-            $student->contactno = $validated['contactno'];
-            $student->degree_id = $validated['degree_id'] ?? null;
+            foreach ($this->studentDataForExistingColumns($validated) as $column => $value) {
+                $student->{$column} = $value;
+            }
+
             $student->save();
 
-            if ($student->userAccount) {
+            if (Schema::hasTable('user_account') && Schema::hasColumn('students', 'user_account_id') && $student->userAccount) {
                 $student->userAccount->update([
                     'email' => $validated['email'],
                 ]);
@@ -354,10 +359,14 @@ class StudentController extends Controller
      */
     public function destroy(string $id)
     {
+        $this->ensureStudentCrudSchema();
+
         $student = Student::findOrFail($id);
 
         DB::transaction(function () use ($student) {
-            $userAccount = $student->userAccount;
+            $userAccount = Schema::hasTable('user_account') && Schema::hasColumn('students', 'user_account_id')
+                ? $student->userAccount
+                : null;
             $imagePath = $student->image_path;
             $student->delete();
 
@@ -388,5 +397,79 @@ class StudentController extends Controller
 
         return redirect('/student')->with('success', 'Student deleted successfully.');
 
+    }
+
+    private function ensureStudentCrudSchema(): void
+    {
+        try {
+            Artisan::call('app:repair-schema');
+        } catch (Throwable $exception) {
+            Log::error('Unable to repair student CRUD schema.', [
+                'message' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function degreeOptions()
+    {
+        try {
+            if (! Schema::hasTable('degrees')) {
+                return collect();
+            }
+
+            $query = Degree::query();
+
+            if (Schema::hasColumn('degrees', 'degree_title')) {
+                $query->orderBy('degree_title');
+            }
+
+            return $query->get();
+        } catch (Throwable $exception) {
+            Log::error('Unable to load degree options.', [
+                'message' => $exception->getMessage(),
+            ]);
+
+            return collect();
+        }
+    }
+
+    private function studentRelations(bool $includeUserAccount = false): array
+    {
+        $relations = [];
+
+        if (Schema::hasTable('degrees') && Schema::hasColumn('students', 'degree_id')) {
+            $relations[] = 'degree';
+        }
+
+        if ($includeUserAccount && Schema::hasTable('user_account') && Schema::hasColumn('students', 'user_account_id')) {
+            $relations[] = 'userAccount';
+        }
+
+        return $relations;
+    }
+
+    private function studentValidationRules(array $rules, bool $includeAccountRules): array
+    {
+        if (Schema::hasTable('degrees') && Schema::hasColumn('degrees', 'id') && Schema::hasColumn('students', 'degree_id')) {
+            $rules['degree_id'] = 'nullable|exists:degrees,id';
+        }
+
+        if ($includeAccountRules && Schema::hasTable('user_account') && Schema::hasColumn('user_account', 'username')) {
+            $rules['username'] = 'required|string|max:255|unique:user_account,username';
+        }
+
+        return $rules;
+    }
+
+    private function studentDataForExistingColumns(array $data): array
+    {
+        return collect($data)
+            ->filter(fn ($value, $column) => Schema::hasColumn('students', $column))
+            ->all();
+    }
+
+    private function emptyStudentPaginator(): LengthAwarePaginator
+    {
+        return new LengthAwarePaginator([], 0, 5);
     }
 }
