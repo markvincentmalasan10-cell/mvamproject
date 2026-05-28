@@ -118,7 +118,11 @@ file_put_contents($file, $contents);
 php -r '
 $file = ".env";
 $dbUrl = getenv("DB_URL") ?: "";
+$host = getenv("DB_HOST") ?: "";
+$port = getenv("DB_PORT") ?: "";
 $database = getenv("DB_DATABASE") ?: "";
+$username = getenv("DB_USERNAME") ?: "";
+$password = getenv("DB_PASSWORD") ?: "";
 $connection = getenv("DB_CONNECTION") ?: "mysql";
 $sessionDriver = getenv("SESSION_DRIVER") ?: "file";
 $cacheStore = getenv("CACHE_STORE") ?: "file";
@@ -128,12 +132,16 @@ $contents = file_exists($file) ? file_get_contents($file) : "";
 foreach ([
     "DB_URL" => $dbUrl,
     "DB_CONNECTION" => $connection,
+    "DB_HOST" => $host,
+    "DB_PORT" => $port,
     "DB_DATABASE" => $database,
+    "DB_USERNAME" => $username,
+    "DB_PASSWORD" => $password,
     "SESSION_DRIVER" => $sessionDriver,
     "CACHE_STORE" => $cacheStore,
     "QUEUE_CONNECTION" => $queueConnection,
 ] as $key => $value) {
-    if ($value === "") {
+    if ($value === "" && $key !== "DB_URL") {
         continue;
     }
 
