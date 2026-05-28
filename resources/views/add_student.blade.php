@@ -16,7 +16,8 @@
             <div class="error-message">{{ $errors->first() }}</div>
         @endif
 
-        <form id="addStudentForm" enctype="multipart/form-data">
+        <form id="addStudentForm" action="/students" method="POST" enctype="multipart/form-data">
+            @csrf
             <div class="form-grid">
                 <div class="form-group">
                     <label for="fname">First Name:</label>
@@ -75,7 +76,7 @@
             </div>
 
             <div class="form-actions">
-                <button type="button" id="saveStudent">Submit</button>
+                <button type="submit" id="saveStudent">Submit</button>
                 <a href="/student" class="btn btn-secondary">Back</a>
             </div>
         </form>

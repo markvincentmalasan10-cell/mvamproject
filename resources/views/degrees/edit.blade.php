@@ -12,7 +12,9 @@
             <div class="error-message">{{ $errors->first() }}</div>
         @endif
 
-        <form id="editDegreeForm">
+        <form id="editDegreeForm" action="{{ route('degrees.update', $degree->id) }}" method="POST">
+            @csrf
+            @method('PUT')
             <input type="hidden" id="degreeId" value="{{ $degree->id }}">
 
             <div class="form-group">
@@ -21,7 +23,7 @@
             </div>
 
             <div class="form-actions">
-                <button type="button" id="updateDegreeBtn">Update</button>
+                <button type="submit" id="updateDegreeBtn">Update</button>
                 <a href="{{ route('degrees.index') }}" class="btn btn-secondary">Back</a>
             </div>
         </form>

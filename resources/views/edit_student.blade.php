@@ -16,7 +16,9 @@
             <div class="error-message">{{ $errors->first() }}</div>
         @endif
 
-        <form id="editStudentForm">
+        <form id="editStudentForm" action="/students/{{ $student->id }}" method="POST">
+            @csrf
+            @method('PUT')
             <input type="hidden" id="studentId" value="{{ $student->id }}">
 
             <div class="form-grid">
@@ -59,7 +61,7 @@
             </div>
 
             <div class="form-actions">
-                <button type="button" id="updateStudentBtn">Update</button>
+                <button type="submit" id="updateStudentBtn">Update</button>
                 <a href="/student" class="btn btn-secondary">Back</a>
             </div>
         </form>
