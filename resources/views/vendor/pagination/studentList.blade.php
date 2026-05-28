@@ -12,7 +12,13 @@
                 @foreach ($students as $student)
                     <tr>
                         <td>{{ $student->lname }}, {{ $student->fname }} {{ $student->mname }}</td>
-                        <td>{{ $student->degree ? $student->degree->degree_title : 'N/A' }}</td>
+                        <td>
+                            @if($student->relationLoaded('degree'))
+                                {{ $student->degree?->degree_title ?? 'N/A' }}
+                            @else
+                                {{ $student->degree_title ?? 'N/A' }}
+                            @endif
+                        </td>
                         <td>{{ $student->contactno }}</td>
                     </tr>
                 @endforeach

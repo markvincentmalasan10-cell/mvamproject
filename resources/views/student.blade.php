@@ -38,7 +38,13 @@ Welcome, {{$user}}! <br>
                 <td>{{ $student['lname'] }}, {{ $student['fname'] }}, {{ $student['mname'] }}</td>
                 <td>{{ $student['email'] }}</td>
                 <td>{{ $student['contactno'] }}</td>
-                <td>{{ $student->degree->degree_title ?? 'N/A' }}</td>
+                <td>
+                    @if($student->relationLoaded('degree'))
+                        {{ $student->degree?->degree_title ?? 'N/A' }}
+                    @else
+                        {{ $student->degree_title ?? 'N/A' }}
+                    @endif
+                </td>
                 <td>
                     <div class="icon-actions">
                         <a href="/student/{{ $student['id'] }}" class="icon-btn icon-view" title="View Student" aria-label="View Student">

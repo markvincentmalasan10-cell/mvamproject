@@ -168,7 +168,7 @@ file_put_contents($file, $contents);
 '
 
 php artisan optimize:clear
-php artisan migrate --force
+php artisan migrate --force || true
 php artisan migrate --path=database/migrations/2026_05_27_010000_ensure_laravel_infrastructure_tables.php --force || true
 php artisan app:repair-schema --no-interaction
 php artisan db:seed --force

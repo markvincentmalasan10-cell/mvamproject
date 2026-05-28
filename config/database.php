@@ -19,7 +19,9 @@ $databaseConnection = preg_replace('/[^A-Za-z0-9_-]/', '', $databaseConnection) 
 
 $sqliteDatabase = $cleanDatabaseEnv('DB_DATABASE', database_path('database.sqlite'));
 
-if ($sqliteDatabase && ! preg_match('#^([A-Za-z]:[\\\\/]|/)#', $sqliteDatabase)) {
+if ($sqliteDatabase === ':memory:') {
+    $sqliteDatabase = ':memory:';
+} elseif ($sqliteDatabase && ! preg_match('#^([A-Za-z]:[\\\\/]|/)#', $sqliteDatabase)) {
     $sqliteDatabase = base_path($sqliteDatabase);
 }
 
