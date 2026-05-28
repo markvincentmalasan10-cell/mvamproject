@@ -164,8 +164,16 @@ class StudentController extends Controller
      */
     public function create()
     {
-         $this->ensureStudentCrudSchema();
-         $degrees = $this->degreeOptions();
+         try {
+            $this->ensureStudentCrudSchema();
+            $degrees = $this->degreeOptions();
+         } catch (Throwable $exception) {
+            Log::error('Unable to prepare student create form.', [
+                'message' => $exception->getMessage(),
+            ]);
+
+            $degrees = collect();
+         }
 
          return view('add_student', compact('degrees'));
     }
