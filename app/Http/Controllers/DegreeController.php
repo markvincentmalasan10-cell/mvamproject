@@ -36,11 +36,32 @@ class DegreeController extends Controller
 
     public function store(Request $request)
     {
-        $this->ensureDegreeSchema();
+        try {
+            $this->ensureDegreeSchema();
 
-        $validated = $request->validate($this->degreeValidationRules());
+            $validated = $request->validate($this->degreeValidationRules());
 
-        Degree::create($this->degreeDataForExistingColumns($validated));
+            Degree::create($this->degreeDataForExistingColumns($validated));
+        } catch (Throwable $exception) {
+            Log::error('Unable to store degree.', [
+                'message' => $exception->getMessage(),
+            ]);
+
+            $message = str_contains(strtolower($exception->getMessage()), 'unique')
+                ? 'Degree already exists. Please use a different title.'
+                : 'Degree could not be saved. Please check the title and try again.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'degree_title' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return back()->withErrors(['degree_title' => $message])->withInput();
+        }
 
         $msg = "Degree added successfully.";
         Log::info($msg);
@@ -85,13 +106,35 @@ class DegreeController extends Controller
 
     public function update(Request $request, string $id)
     {
-        $this->ensureDegreeSchema();
+        try {
+            $this->ensureDegreeSchema();
 
-        $degree = Degree::findOrFail($id);
+            $degree = Degree::findOrFail($id);
 
-        $validated = $request->validate($this->degreeValidationRules($degree->id));
+            $validated = $request->validate($this->degreeValidationRules($degree->id));
 
-        $degree->update($this->degreeDataForExistingColumns($validated));
+            $degree->update($this->degreeDataForExistingColumns($validated));
+        } catch (Throwable $exception) {
+            Log::error('Unable to update degree.', [
+                'degree_id' => $id,
+                'message' => $exception->getMessage(),
+            ]);
+
+            $message = str_contains(strtolower($exception->getMessage()), 'unique')
+                ? 'Degree already exists. Please use a different title.'
+                : 'Degree could not be updated. Please check the title and try again.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'degree_title' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return back()->withErrors(['degree_title' => $message])->withInput();
+        }
 
         $msg = "Degree updated successfully.";
         Log::info($msg);
