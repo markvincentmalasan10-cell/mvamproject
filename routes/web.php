@@ -8,6 +8,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\PagesController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 
 Route::redirect('/', '/login');
 
@@ -36,17 +37,27 @@ Route::get('/crud-sync', function () {
     $versions = [];
 
     foreach (['students', 'teachers', 'degrees'] as $table) {
-        if (!Schema::hasTable($table)) {
-            continue;
+        try {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+
+            $latest = Schema::hasColumn($table, 'updated_at')
+                ? DB::table($table)->max('updated_at')
+                : null;
+
+            $count = DB::table($table)->count();
+
+            $versions[$table] = [
+                'action' => 'changed',
+                'version' => $count . '-' . ($latest ?: '0'),
+            ];
+        } catch (Throwable $exception) {
+            Log::error('Unable to read CRUD sync version.', [
+                'table' => $table,
+                'message' => $exception->getMessage(),
+            ]);
         }
-
-        $latest = DB::table($table)->max('updated_at');
-        $count = DB::table($table)->count();
-
-        $versions[$table] = [
-            'action' => 'changed',
-            'version' => $count . '-' . ($latest ?: '0'),
-        ];
     }
 
     return response()->json(['versions' => $versions]);

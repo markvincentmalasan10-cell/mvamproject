@@ -68,6 +68,13 @@ class ExampleTest extends TestCase
         $this->get('/students/export/pdf')->assertStatus(200);
     }
 
+    public function test_crud_sync_returns_versions(): void
+    {
+        $this->get('/crud-sync')
+            ->assertStatus(200)
+            ->assertJsonStructure(['versions']);
+    }
+
     public function test_admin_student_crud_urls_work(): void
     {
         $this->withSession([
