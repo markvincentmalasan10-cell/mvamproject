@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\UserAccount;
 use App\Models\Student;
+use App\Models\Degree;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -104,5 +105,33 @@ class ExampleTest extends TestCase
         ])->assertStatus(200);
 
         $this->deleteJson("/students/{$student->id}")->assertStatus(200);
+    }
+
+    public function test_admin_degree_crud_urls_work(): void
+    {
+        $this->withSession([
+            'user_account_id' => 1,
+            'logged_user' => 'admin',
+            'user_role' => 'admin',
+            'is_first_login' => false,
+        ]);
+
+        $this->get('/degrees')->assertStatus(200);
+        $this->get('/degrees/create')->assertStatus(200);
+
+        $this->postJson('/degrees', [
+            'degree_title' => 'BS Information Technology',
+        ])->assertStatus(200);
+
+        $degree = Degree::where('degree_title', 'BS Information Technology')->firstOrFail();
+
+        $this->get("/degrees/{$degree->id}")->assertStatus(200);
+        $this->get("/degrees/{$degree->id}/edit")->assertStatus(200);
+
+        $this->putJson("/degrees/{$degree->id}", [
+            'degree_title' => 'BS Computer Science',
+        ])->assertStatus(200);
+
+        $this->deleteJson("/degrees/{$degree->id}")->assertStatus(200);
     }
 }

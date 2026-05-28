@@ -4,36 +4,43 @@ namespace App\Http\Controllers;
 
 use App\Models\Degree;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class DegreeController extends Controller
 {
     public function index()
     {
-        if (! Schema::hasTable('degrees')) {
-            return view('degrees.index', ['degrees' => collect()]);
-        }
+        try {
+            $this->ensureDegreeSchema();
+            $degrees = $this->degreeQuery()->get();
+        } catch (Throwable $exception) {
+            Log::error('Unable to load degree list.', [
+                'message' => $exception->getMessage(),
+            ]);
 
-        $degrees = Schema::hasColumn('degrees', 'degree_title')
-            ? Degree::orderBy('degree_title')->get()
-            : Degree::query()->get();
+            $degrees = collect();
+        }
 
         return view('degrees.index', compact('degrees'));
     }
 
     public function create()
     {
+        $this->ensureDegreeSchema();
+
         return view('degrees.create');
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'degree_title' => 'required|string|max:255|unique:degrees,degree_title',
-        ]);
+        $this->ensureDegreeSchema();
 
-        Degree::create($validated);
+        $validated = $request->validate($this->degreeValidationRules());
+
+        Degree::create($this->degreeDataForExistingColumns($validated));
 
         $msg = "Degree added successfully.";
         Log::info($msg);
@@ -56,6 +63,8 @@ class DegreeController extends Controller
 
     public function show(string $id)
     {
+        $this->ensureDegreeSchema();
+
         $degree = Degree::findOrFail($id);
 
         if (request()->expectsJson()) {
@@ -67,6 +76,8 @@ class DegreeController extends Controller
 
     public function edit(string $id)
     {
+        $this->ensureDegreeSchema();
+
         $degree = Degree::findOrFail($id);
 
         return view('degrees.edit', compact('degree'));
@@ -74,13 +85,13 @@ class DegreeController extends Controller
 
     public function update(Request $request, string $id)
     {
+        $this->ensureDegreeSchema();
+
         $degree = Degree::findOrFail($id);
 
-        $validated = $request->validate([
-            'degree_title' => 'required|string|max:255|unique:degrees,degree_title,' . $degree->id,
-        ]);
+        $validated = $request->validate($this->degreeValidationRules($degree->id));
 
-        $degree->update($validated);
+        $degree->update($this->degreeDataForExistingColumns($validated));
 
         $msg = "Degree updated successfully.";
         Log::info($msg);
@@ -103,6 +114,8 @@ class DegreeController extends Controller
 
     public function destroy(string $id)
     {
+        $this->ensureDegreeSchema();
+
         Degree::destroy($id);
 
         $msg = "Degree deleted successfully.";
@@ -122,5 +135,55 @@ class DegreeController extends Controller
         }
 
         return redirect()->route('degrees.index')->with('success', 'Degree deleted successfully.');
+    }
+
+    private function ensureDegreeSchema(): void
+    {
+        try {
+            Artisan::call('app:repair-schema');
+        } catch (Throwable $exception) {
+            Log::error('Unable to repair degree schema.', [
+                'message' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function degreeQuery()
+    {
+        if (! Schema::hasTable('degrees')) {
+            return Degree::query()->whereRaw('1 = 0');
+        }
+
+        $query = Degree::query();
+
+        if (Schema::hasColumn('degrees', 'degree_title')) {
+            $query->orderBy('degree_title');
+        }
+
+        return $query;
+    }
+
+    private function degreeValidationRules(?int $ignoreId = null): array
+    {
+        $rule = 'required|string|max:255';
+
+        if (Schema::hasTable('degrees') && Schema::hasColumn('degrees', 'degree_title')) {
+            $rule .= '|unique:degrees,degree_title';
+
+            if ($ignoreId) {
+                $rule .= ',' . $ignoreId;
+            }
+        }
+
+        return [
+            'degree_title' => $rule,
+        ];
+    }
+
+    private function degreeDataForExistingColumns(array $data): array
+    {
+        return collect($data)
+            ->filter(fn ($value, $column) => Schema::hasColumn('degrees', $column))
+            ->all();
     }
 }
