@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Models\UserAccount;
+use Throwable;
 
 class StudentController extends Controller
 {
@@ -87,20 +88,31 @@ class StudentController extends Controller
     //     ->with("students",$students)
     //     ->with("grade",$grade);
 
-        if (! Schema::hasTable('students')) {
+        try {
+            if (! Schema::hasTable('students')) {
+                $students = new LengthAwarePaginator([], 0, 5);
+                $user = session('logged_user', session('student_name'));
+
+                return view('student')->with("students", $students)->with("user", $user);
+            }
+
+            $query = Student::query();
+
+            if (Schema::hasTable('degrees') && Schema::hasColumn('students', 'degree_id')) {
+                $query->with('degree');
+            }
+
+            $students = $query->paginate(5);
+        } catch (Throwable $exception) {
+            Log::error('Unable to load student list.', [
+                'message' => $exception->getMessage(),
+            ]);
+
             $students = new LengthAwarePaginator([], 0, 5);
             $user = session('logged_user', session('student_name'));
 
             return view('student')->with("students", $students)->with("user", $user);
         }
-
-        $query = Student::query();
-
-        if (Schema::hasTable('degrees') && Schema::hasColumn('students', 'degree_id')) {
-            $query->with('degree');
-        }
-
-        $students = $query->paginate(5);
 
         if ($request->ajax() && ! $request->boolean('full_page')) {
             return view('vendor.pagination.studentList')->with('students', $students);
