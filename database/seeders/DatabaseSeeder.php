@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Course;
+use App\Models\Degree;
 use App\Models\Student;
 use App\Models\UserAccount;
 use App\Models\User;
@@ -41,6 +42,13 @@ class DatabaseSeeder extends Seeder
                 'is_first_login' => false,
             ]
         );
+
+        foreach (['BSIT', 'BSHM'] as $degreeTitle) {
+            Degree::updateOrCreate(
+                ['degree_title' => $degreeTitle],
+                ['degree_title' => $degreeTitle]
+            );
+        }
 
         $juan = Student::updateOrCreate(
             ['email' => 'juan.delacruz@example.com'],
