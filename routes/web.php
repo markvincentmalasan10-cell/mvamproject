@@ -8,7 +8,6 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\PagesController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Log;
 
 Route::redirect('/', '/login');
 
@@ -53,10 +52,7 @@ Route::get('/crud-sync', function () {
                 'version' => $count . '-' . ($latest ?: '0'),
             ];
         } catch (Throwable $exception) {
-            Log::error('Unable to read CRUD sync version.', [
-                'table' => $table,
-                'message' => $exception->getMessage(),
-            ]);
+            continue;
         }
     }
 

@@ -5,7 +5,6 @@ use App\Models\Degree;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -90,8 +89,6 @@ class StudentController extends Controller
     //     ->with("grade",$grade);
 
         try {
-            $this->ensureStudentCrudSchema();
-
             if (! Schema::hasTable('students')) {
                 $students = $this->emptyStudentPaginator();
                 $user = session('logged_user', session('student_name'));
@@ -165,7 +162,6 @@ class StudentController extends Controller
     public function create()
     {
          try {
-            $this->ensureStudentCrudSchema();
             $degrees = $this->degreeOptions();
          } catch (Throwable $exception) {
             Log::error('Unable to prepare student create form.', [
@@ -184,8 +180,6 @@ class StudentController extends Controller
     public function store(Request $request)
     {
         try {
-            $this->ensureStudentCrudSchema();
-
             $validated = $request->validate($this->studentValidationRules([
                 'fname' => 'required|string|max:255',
                 'mname' => 'nullable|string|max:255',
@@ -255,15 +249,7 @@ class StudentController extends Controller
             return back()->withErrors(['username' => $message])->withInput();
         }
 
-        $msg = "Student added successfully.";
-        Log::info($msg);
-        Log::error($msg);
-        Log::warning($msg);
-        Log::notice($msg);
-        Log::debug($msg);
-        Log::critical($msg);
-        Log::alert($msg);
-        Log::emergency($msg);
+        Log::info('Student added successfully.');
 
 
         if ($request->expectsJson() || $request->ajax()) {
@@ -280,8 +266,6 @@ class StudentController extends Controller
      */
     public function show(Request $request, string $id)
     {
-        $this->ensureStudentCrudSchema();
-
         $student = Student::with($this->studentRelations(true))->findOrFail($id);
 
         if ($request->expectsJson()) {
@@ -296,8 +280,6 @@ class StudentController extends Controller
      */
     public function edit(string $id)
     {
-        $this->ensureStudentCrudSchema();
-
         $student = Student::findOrFail($id);
         $degrees = $this->degreeOptions();
 
@@ -340,8 +322,6 @@ class StudentController extends Controller
      */
     public function update(Request $request, string $id)
     {
-       $this->ensureStudentCrudSchema();
-
        $validated = $request->validate($this->studentValidationRules([
             'fname' => 'required|string|max:255',
             'mname' => 'nullable|string|max:255',
@@ -367,15 +347,7 @@ class StudentController extends Controller
             }
         });
 
-        $msg = "Student updated successfully.";
-        Log::info($msg);
-        Log::error($msg);
-        Log::warning($msg);
-        Log::notice($msg);
-        Log::debug($msg);
-        Log::critical($msg);
-        Log::alert($msg);
-        Log::emergency($msg);
+        Log::info('Student updated successfully.');
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
@@ -391,8 +363,6 @@ class StudentController extends Controller
      */
     public function destroy(string $id)
     {
-        $this->ensureStudentCrudSchema();
-
         $student = Student::findOrFail($id);
 
         DB::transaction(function () use ($student) {
@@ -411,15 +381,7 @@ class StudentController extends Controller
             }
         });
 
-        $msg = "Student deleted successfully.";
-        Log::info($msg);
-        Log::error($msg);
-        Log::warning($msg);
-        Log::notice($msg);
-        Log::debug($msg);
-        Log::critical($msg);
-        Log::alert($msg);
-        Log::emergency($msg);
+        Log::info('Student deleted successfully.');
 
         if (request()->expectsJson() || request()->ajax()) {
             return response()->json([
@@ -429,17 +391,6 @@ class StudentController extends Controller
 
         return redirect('/student')->with('success', 'Student deleted successfully.');
 
-    }
-
-    private function ensureStudentCrudSchema(): void
-    {
-        try {
-            Artisan::call('app:repair-schema');
-        } catch (Throwable $exception) {
-            Log::error('Unable to repair student CRUD schema.', [
-                'message' => $exception->getMessage(),
-            ]);
-        }
     }
 
     private function degreeOptions()

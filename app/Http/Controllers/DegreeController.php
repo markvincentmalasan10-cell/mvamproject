@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Degree;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
@@ -14,7 +13,6 @@ class DegreeController extends Controller
     public function index()
     {
         try {
-            $this->ensureDegreeSchema();
             $degrees = $this->degreeQuery()->get();
         } catch (Throwable $exception) {
             Log::error('Unable to load degree list.', [
@@ -29,16 +27,12 @@ class DegreeController extends Controller
 
     public function create()
     {
-        $this->ensureDegreeSchema();
-
         return view('degrees.create');
     }
 
     public function store(Request $request)
     {
         try {
-            $this->ensureDegreeSchema();
-
             $validated = $request->validate($this->degreeValidationRules());
 
             Degree::create($this->degreeDataForExistingColumns($validated));
@@ -63,15 +57,7 @@ class DegreeController extends Controller
             return back()->withErrors(['degree_title' => $message])->withInput();
         }
 
-        $msg = "Degree added successfully.";
-        Log::info($msg);
-        Log::error($msg);
-        Log::warning($msg);
-        Log::notice($msg);
-        Log::debug($msg);
-        Log::critical($msg);
-        Log::alert($msg);
-        Log::emergency($msg);
+        Log::info('Degree added successfully.');
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
@@ -84,8 +70,6 @@ class DegreeController extends Controller
 
     public function show(string $id)
     {
-        $this->ensureDegreeSchema();
-
         $degree = Degree::findOrFail($id);
 
         if (request()->expectsJson()) {
@@ -97,8 +81,6 @@ class DegreeController extends Controller
 
     public function edit(string $id)
     {
-        $this->ensureDegreeSchema();
-
         $degree = Degree::findOrFail($id);
 
         return view('degrees.edit', compact('degree'));
@@ -107,8 +89,6 @@ class DegreeController extends Controller
     public function update(Request $request, string $id)
     {
         try {
-            $this->ensureDegreeSchema();
-
             $degree = Degree::findOrFail($id);
 
             $validated = $request->validate($this->degreeValidationRules($degree->id));
@@ -136,15 +116,7 @@ class DegreeController extends Controller
             return back()->withErrors(['degree_title' => $message])->withInput();
         }
 
-        $msg = "Degree updated successfully.";
-        Log::info($msg);
-        Log::error($msg);
-        Log::warning($msg);
-        Log::notice($msg);
-        Log::debug($msg);
-        Log::critical($msg);
-        Log::alert($msg);
-        Log::emergency($msg);
+        Log::info('Degree updated successfully.');
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
@@ -157,19 +129,9 @@ class DegreeController extends Controller
 
     public function destroy(string $id)
     {
-        $this->ensureDegreeSchema();
-
         Degree::destroy($id);
 
-        $msg = "Degree deleted successfully.";
-        Log::info($msg);
-        Log::error($msg);
-        Log::warning($msg);
-        Log::notice($msg);
-        Log::debug($msg);
-        Log::critical($msg);
-        Log::alert($msg);
-        Log::emergency($msg);
+        Log::info('Degree deleted successfully.');
 
         if (request()->expectsJson() || request()->ajax()) {
             return response()->json([
@@ -178,17 +140,6 @@ class DegreeController extends Controller
         }
 
         return redirect()->route('degrees.index')->with('success', 'Degree deleted successfully.');
-    }
-
-    private function ensureDegreeSchema(): void
-    {
-        try {
-            Artisan::call('app:repair-schema');
-        } catch (Throwable $exception) {
-            Log::error('Unable to repair degree schema.', [
-                'message' => $exception->getMessage(),
-            ]);
-        }
     }
 
     private function degreeQuery()
