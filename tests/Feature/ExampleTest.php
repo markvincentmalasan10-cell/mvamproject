@@ -1,0 +1,68 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\UserAccount;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Tests\TestCase;
+
+class ExampleTest extends TestCase
+{
+    use RefreshDatabase;
+
+    /**
+     * A basic test example.
+     */
+    public function test_the_application_redirects_to_login(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertRedirect('/login');
+    }
+
+    public function test_the_login_page_returns_a_successful_response(): void
+    {
+        $response = $this->get('/login');
+
+        $response->assertStatus(200);
+    }
+
+    public function test_admin_can_log_in(): void
+    {
+        UserAccount::updateOrCreate([
+            'username' => 'admin'
+        ], [
+            'email' => 'admin@example.com',
+            'password' => Hash::make('admin123'),
+            'role' => 'admin',
+            'is_active' => true,
+            'must_change_password' => false,
+            'is_first_login' => false,
+        ]);
+
+        $response = $this->post('/login', [
+            'username' => 'admin',
+            'password' => 'admin123',
+        ]);
+
+        $response->assertRedirect('/dashboard');
+        $response->assertSessionHas('user_role', 'admin');
+    }
+
+    public function test_admin_crud_pages_load(): void
+    {
+        $this->withSession([
+            'user_account_id' => 1,
+            'logged_user' => 'admin',
+            'user_role' => 'admin',
+            'is_first_login' => false,
+        ]);
+
+        $this->get('/student')->assertStatus(200);
+        $this->get('/teacher')->assertStatus(200);
+        $this->get('/degrees')->assertStatus(200);
+        $this->get('/students/export/excel')->assertStatus(200);
+        $this->get('/students/export/pdf')->assertStatus(200);
+    }
+}
