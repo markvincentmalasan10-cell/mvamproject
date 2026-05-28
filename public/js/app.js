@@ -251,7 +251,7 @@ $(document).ready(function() {
     }
 
     checkCrudSync();
-    setInterval(checkCrudSync, 1000);
+    setInterval(checkCrudSync, 10000);
 
     function resetFields(fields) {
         fields.forEach(function(selector) {
